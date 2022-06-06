@@ -1,0 +1,9 @@
+[submodule "async_unix"]
+	path = async_unix
+	url = https://github.com/talex5/async_unix.git
+[submodule "core"]
+	path = core
+	url = https://github.com/talex5/core.git
+[submodule "eio"]
+	path = eio
+	url = https://github.com/ocaml-multicore/eio.git

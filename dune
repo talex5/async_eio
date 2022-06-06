@@ -1,0 +1,5 @@
+(vendored_dirs core async_unix eio)
+
+(mdx
+  (packages async_eio eio_main)
+  (files README.md))

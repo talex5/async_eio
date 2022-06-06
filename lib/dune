@@ -1,0 +1,4 @@
+(library
+ (public_name async_eio)
+ (libraries async_unix eio.unix)
+ (preprocess (pps ppx_jane -annotated-ignores)))

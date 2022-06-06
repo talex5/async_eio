@@ -1,0 +1,2 @@
+(mdx
+  (packages async_eio eio_main))
