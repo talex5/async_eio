@@ -131,6 +131,7 @@ let thread_safe_check t () timeout span_or_unit =
   match epoll_wait t.epoll timeout span_or_unit with
   | `Ok -> Check_result.ok
   | `Timeout -> Check_result.timeout
+  | exception Eio.Cancel.Cancelled _ -> raise Exit      (* Avoids async needing to know about Eio *)
   | exception e -> Error (e, Backtrace.Exn.most_recent ())
 ;;
 

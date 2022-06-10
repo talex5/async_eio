@@ -38,15 +38,19 @@ let with_event_loop fn =
             (* Run the main async thread *)
             let file_descr_watcher = Async_unix.Scheduler.Which_watcher.Custom
                 (module Epoll_file_descr_watcher_eio : Async_unix.Scheduler.Which_watcher.Custom.S) in
-            Core.never_returns @@ Async_unix.Scheduler.go_main ~raise_unhandled_exn:true ~file_descr_watcher ()
-              ~main:(fun () ->
-                  let async_sched = Async_unix.Scheduler.t () in
-                  set_async_integration @@ Some {
-                    lock = (fun () -> Async_unix.Scheduler.lock async_sched);
-                    unlock = (fun () -> Async_unix.Scheduler.unlock async_sched);
-                  };
-                  Switch.on_release sw (fun () -> set_async_integration None);
-                )
+            try
+              Core.never_returns @@ Async_unix.Scheduler.go_main ~raise_unhandled_exn:true ~file_descr_watcher ()
+                ~main:(fun () ->
+                    let async_sched = Async_unix.Scheduler.t () in
+                    set_async_integration @@ Some {
+                      lock = (fun () -> Async_unix.Scheduler.lock async_sched);
+                      unlock = (fun () -> Async_unix.Scheduler.unlock async_sched);
+                    };
+                    Switch.on_release sw (fun () -> set_async_integration None);
+                  )
+            with ex ->
+              Fiber.check ();   (* Check if we were cancelled *)
+              raise ex          (* Otherwise, report the fault *)
          )
          (fun () ->
             (* Collect Eio jobs submitted from Async threads *)
