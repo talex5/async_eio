@@ -45,14 +45,17 @@ open Async_unix;;
 let handle_client ~r ~w =
   Pipe.transfer ~f:Fun.id
     (Reader.pipe r)
-    (Writer.pipe w);;
+    (Writer.pipe w)
 
 (* Run an echo server on [port]. *)
 let run_server ~port =
   Tcp.Server.create
     ~on_handler_error:`Raise
     (Tcp.Where_to_listen.of_port port)
-    (fun _addr r w -> handle_client ~r ~w)
+    (fun _addr r w ->
+       handle_client ~r ~w >>= fun () ->
+       Writer.flushed w
+    )
 
 (* Test an echo server on localhost/[port]. *)
 let run_client ~port =
@@ -172,7 +175,10 @@ let run_server ~port =
   Tcp.Server.create
     ~on_handler_error:`Raise
     (Tcp.Where_to_listen.of_port port)
-    (fun _addr r w -> handle_client ~r ~w)
+    (fun _addr r w ->
+       handle_client ~r ~w >>= fun () ->
+       Writer.flushed w
+    )
 ```
 
 ```ocaml
