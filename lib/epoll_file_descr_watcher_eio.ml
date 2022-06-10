@@ -114,7 +114,12 @@ let epoll_wait (type a) (epoll : Epoll.t) (timeout : a Timeout.t) (span_or_unit 
     Fun.protect (fun () -> await_epoll epoll)
       ~finally:(fun () -> Scheduler.unlock sched);
     Epoll.wait epoll ~timeout:`Never;
-  | Immediately -> Epoll.wait epoll ~timeout:`Immediately
+  | Immediately ->
+    (* Still allow other Eio fibers to run *)
+    Scheduler.lock sched;
+    Fun.protect (fun () -> Eio.Fiber.yield ())
+      ~finally:(fun () -> Scheduler.unlock sched);
+    Epoll.wait epoll ~timeout:`Immediately
   | After ->
     Scheduler.lock sched;
     Fun.protect

@@ -62,7 +62,11 @@ let with_event_loop fn =
        assert false
     )
 
+let check_async_is_running () =
+  ignore (t () : t)
+
 let run_async fn =
+  check_async_is_running ();
   let p, r = Promise.create () in
   (* Promise.resolve can be run safely from a non-eio thread. *)
   Deferred.upon (Async_kernel.try_with fn) (Promise.resolve r);

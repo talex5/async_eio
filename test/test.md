@@ -17,7 +17,12 @@ Some imports:
 # #require "eio_main";;
 # #require "async_eio";;
 # #require "threads.posix";;
-# open Eio.Std;;
+```
+
+```ocaml
+open Eio.Std;;
+let ( >>= ) = Async_kernel.( >>= )
+let return = Async_kernel.return
 ```
 
 ## Check for races
@@ -56,7 +61,6 @@ let use_resource () =
     )
     (fun () ->
        Async_eio.run_async (fun () ->
-          let open Async_kernel in
           let open Async_unix in
           In_thread.(run ~when_finished:When_finished.Take_the_async_lock) ignore >>= fun () ->
           (* We wake up the Eio thread here, but it can't run yet as we have the async lock. *)
@@ -91,17 +95,68 @@ However, Eio must release the async lock when waiting for IO. Otherwise, Async t
     )
     (fun () ->
        Async_eio.run_async (fun () ->
-          let ( >>= ) = Async_kernel.( >>= ) in
           Async_unix.In_thread.(run ~when_finished:When_finished.Take_the_async_lock)
             (fun () -> Unix.sleepf 0.1)
           >>= fun () ->
           Format.eprintf "+Async code running in thread-pool thread@.";
           Unix.close w;
-          Async_kernel.return ()
+          return ()
        )
     );;
 +Eio blocking...
 +Async code running in thread-pool thread
 +Eio ready to read
+- : unit = ()
+```
+
+## Starvation
+
+Check that busy Eio fibers and Async threads don't (completely) stop each other from running.
+Though async does run 500 of its threads by default before letting Eio have a go!
+
+```ocaml
+# Eio_main.run @@ fun _env ->
+  Async_eio.with_event_loop @@ fun _ ->
+  Fiber.both
+    (fun () -> for i = 1 to 5 do traceln "eio:%d" i; Fiber.yield () done)
+    (fun () ->
+       Async_eio.run_async (fun () ->
+          let rec loop i =
+            if i mod 100 = 0 then
+              Format.eprintf "+async: %d@." i;
+            if i < 1000 then
+              return () >>= fun () -> loop (i + 1)
+            else
+              return ()
+          in
+          loop 0
+       )
+    );;
++eio:1
++eio:2
++async: 0
++async: 100
++async: 200
++async: 300
++async: 400
++eio:3
++async: 500
++async: 600
++async: 700
++async: 800
++async: 900
++eio:4
++async: 1000
++eio:5
+- : unit = ()
+```
+
+## Warn if no async loop
+
+```ocaml
+# Eio_main.run @@ fun _env ->
+  try Async_eio.run_async (fun () -> failwith "Should have failed")
+  with Failure msg -> traceln "Caught: %s" msg;;
++Caught: Must be called from within Async_eio.with_event_loop!
 - : unit = ()
 ```
