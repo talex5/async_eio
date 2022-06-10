@@ -23,6 +23,12 @@ Some imports:
 open Eio.Std;;
 let ( >>= ) = Async_kernel.( >>= )
 let return = Async_kernel.return
+
+let run fn =
+  Eio_main.run @@ fun _env ->
+  Async_eio.with_event_loop @@ fun _ ->
+  try fn ()
+  with ex -> traceln "Error: %a" Fmt.exn (Async_kernel.Monitor.extract_exn ex)
 ```
 
 ## Check for races
@@ -47,8 +53,7 @@ let use_resource () =
 ```
 
 ```ocaml
-# Eio_main.run @@ fun _env ->
-  Async_eio.with_event_loop @@ fun _ ->
+# run @@ fun () ->
   let async_ready, set_async_ready = Promise.create () in
   Fiber.both
     (fun () ->
@@ -83,9 +88,8 @@ let use_resource () =
 However, Eio must release the async lock when waiting for IO. Otherwise, Async tasks can't make progress:
 
 ```ocaml
-# Eio_main.run @@ fun _env ->
+# run @@ fun () ->
   let r, w = Unix.pipe () in
-  Async_eio.with_event_loop @@ fun _ ->
   Fiber.both
     (fun () ->
        traceln "Eio blocking...";
@@ -115,8 +119,7 @@ Check that busy Eio fibers and Async threads don't (completely) stop each other 
 Though async does run 500 of its threads by default before letting Eio have a go!
 
 ```ocaml
-# Eio_main.run @@ fun _env ->
-  Async_eio.with_event_loop @@ fun _ ->
+# run @@ fun () ->
   Fiber.both
     (fun () -> for i = 1 to 5 do traceln "eio:%d" i; Fiber.yield () done)
     (fun () ->
@@ -158,5 +161,27 @@ Though async does run 500 of its threads by default before letting Eio have a go
   try Async_eio.run_async (fun () -> failwith "Should have failed")
   with Failure msg -> traceln "Caught: %s" msg;;
 +Caught: Must be called from within Async_eio.with_event_loop!
+- : unit = ()
+```
+
+## Exceptions
+
+Errors in Async code turn into exceptions in Eio:
+
+```ocaml
+# run @@ fun () -> failwith "Crash in Eio context";;
++Error: (Failure "Crash in Eio context")
+- : unit = ()
+```
+
+```ocaml
+# run @@ fun () -> Async_eio.run_async (fun () -> failwith "Immediate failure");;
++Error: (Failure "Immediate failure")
+- : unit = ()
+```
+
+```ocaml
+# run @@ fun () -> Async_eio.run_async (fun () -> return () >>= fun () -> failwith "Delayed failure");;
++Error: (Failure "Delayed failure")
 - : unit = ()
 ```
