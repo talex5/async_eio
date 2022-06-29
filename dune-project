@@ -10,7 +10,7 @@
  (synopsis "Run Async code within Eio")
  (description "An Async FD watcher that allows running Async within an Eio event loop.")
  (depends
-  (eio (>= 0.2))
+  (eio (>= 0.3))
   async_unix
   (mdx (and (>= 1.10.0) :with-test))
   (eio_main :with-test)))

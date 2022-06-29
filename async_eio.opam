@@ -9,7 +9,7 @@ homepage: "https://github.com/talex5/async_eio"
 bug-reports: "https://github.com/talex5/async_eio/issues"
 depends: [
   "dune" {>= "2.9"}
-  "eio" {>= "0.2"}
+  "eio" {>= "0.3"}
   "async_unix"
   "mdx" {>= "1.10.0" & with-test}
   "eio_main" {with-test}

@@ -201,7 +201,7 @@ let handle_client flow =
 
 let run_server ~sw socket =
   while true do
-    Eio.Net.accept_sub ~sw ~on_error:raise socket (fun ~sw:_ flow _addr ->
+    Eio.Net.accept_fork ~sw ~on_error:raise socket (fun flow _addr ->
         handle_client flow
     )
   done
